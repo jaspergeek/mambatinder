@@ -38,6 +38,9 @@ export default function Preview({ canvasRef, dims, scale, ready }: Props) {
           {dims && (
             <span className="inline-flex items-center gap-1.5 rounded-full border border-brand/30 bg-white/70 px-3 py-1.5 text-[12px] font-bold text-plum-600 shadow-sm backdrop-blur-sm">
               <RulerIcon className="h-3.5 w-3.5 text-brand" />
+              <span className="text-[9.5px] font-bold uppercase tracking-[0.16em] text-brand">
+                JPG
+              </span>
               <span className="tabular-nums">
                 {dims.w} × {dims.h} px
               </span>

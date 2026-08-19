@@ -7,6 +7,10 @@ export interface CardOptions {
   snakePct: number;
   /** зернистость 0..1 */
   noise: number;
+  /** желаемый кегль подписей @mambatinder, px (уменьшится, если мало места) */
+  labelSize?: number;
+  /** ограничение большей стороны итогового изображения, px (для экспорта) */
+  maxResPx?: number;
   /** проверка актуальности рендера после асинхронной загрузки эмодзи */
   isStale?: () => boolean;
 }
@@ -15,6 +19,9 @@ export interface CardResult {
   w: number;
   h: number;
   scale: number;
+  /** размеры макета в логических px (до масштабирования) */
+  logicalW: number;
+  logicalH: number;
 }
 
 /* ---------- константы шаблона (логические px) ---------- */
@@ -26,10 +33,10 @@ const SNAKE_GAP = Math.round(F * 0.8);
 const MIN_W = 580;
 
 const LABEL_TEXT = "@mambatinder";
-const LABEL_MAX = 25;
-const LABEL_MIN = 13;
+const LABEL_MAX = 25; // дефолтный кегль подписей
+const LABEL_MIN = 10;
 const SIDE_PAD = 44; // поле у края холста
-const SIDE_GAP = 30; // отступ подписи от змеи
+const SIDE_GAP = 16; // отступ подписи от змеи — подписи сидят близко
 
 const PURPLE = "#855f82";
 const GRAY = "#97909a";
@@ -115,7 +122,7 @@ export async function renderCard(
   const segLines = lines.map((l) => segmentLine(l));
   const emojiMap = await loadEmojis(segLines);
   // пока грузились эмодзи, параметры могли измениться — не рисуем устаревшее
-  if (opts.isStale?.()) return { w: 0, h: 0, scale: 0 };
+  if (opts.isStale?.()) return { w: 0, h: 0, scale: 0, logicalW: 0, logicalH: 0 };
 
   const emojiBox = F * 1.3; // Twemoji имеет внутреннее поле, компенсируем
   ctx.font = cardFont(F);
@@ -151,12 +158,19 @@ export async function renderCard(
   const snakeTop = PAD_TOP + textH + SNAKE_GAP;
   const ch = Math.round(snakeTop + sh);
 
-  /* --- масштаб: держим полотно в пределах возможностей браузера --- */
+  /* --- масштаб --- */
   const maxDim = Math.max(cw, ch);
-  const scale = Math.max(
-    1,
-    Math.min(3, 15000 / maxDim, Math.sqrt(230_000_000 / (cw * ch))),
-  );
+  let scale: number;
+  if (opts.maxResPx) {
+    // экспорт: итоговое разрешение ограничено ползунком пользователя
+    scale = Math.min(3, Math.max(0.2, opts.maxResPx / maxDim));
+  } else {
+    // предпросмотр: ретиновая чёткость в пределах возможностей браузера
+    scale = Math.max(
+      1,
+      Math.min(3, 15000 / maxDim, Math.sqrt(230_000_000 / (cw * ch))),
+    );
+  }
 
   canvas.width = Math.round(cw * scale);
   canvas.height = Math.round(ch * scale);
@@ -215,7 +229,7 @@ export async function renderCard(
 
   /* подписи по бокам от змеи, адаптивно центрируются по её вертикали */
   const avail = (cw - sw) / 2 - SIDE_PAD - SIDE_GAP;
-  let ls = Math.min(LABEL_MAX, avail / labelUnit);
+  let ls = Math.min(opts.labelSize ?? LABEL_MAX, avail / labelUnit);
   ls = Math.max(LABEL_MIN, Math.round(ls));
   const totalW = ls * labelUnit;
   const icon = ls;
@@ -237,5 +251,5 @@ export async function renderCard(
   drawVkIcon(ctx, rightStart, lcY - icon / 2, icon);
   ctx.fillText(LABEL_TEXT, rightStart + icon + textGap, lcY + ls * 0.04);
 
-  return { w: canvas.width, h: canvas.height, scale };
+  return { w: canvas.width, h: canvas.height, scale, logicalW: cw, logicalH: ch };
 }

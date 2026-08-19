@@ -8,6 +8,7 @@ import {
 } from "react";
 import {
   CheckIcon,
+  ExpandIcon,
   GrainIcon,
   SaveIcon,
   SnakeIcon,
@@ -30,11 +31,18 @@ interface Props {
   onSnakeDefault: () => void;
   snakePct: number; // 10..60
   onSnakePct: (v: number) => void;
+  labelSize: number; // 10..40 px — кегль подписей
+  onLabelSize: (v: number) => void;
   noise: number; // 0..100
   onNoise: (v: number) => void;
+  maxRes: number; // ограничение большей стороны JPG, px
+  onMaxRes: (v: number) => void;
   onSave: () => void;
   saved: boolean;
-  dims: { w: number; h: number } | null;
+  /** итоговое разрешение JPG */
+  exportDims: { w: number; h: number } | null;
+  /** логический размер холста (макет) */
+  layoutDims: { w: number; h: number } | null;
 }
 
 function SectionTitle({
@@ -238,6 +246,40 @@ export default function Controls(p: Props) {
         </div>
       </section>
 
+      {/* ---- подписи ---- */}
+      <section className="anim-rise" style={{ animationDelay: "180ms" }}>
+        <SectionTitle
+          icon={<TypeIcon className="h-4 w-4" />}
+          badge={
+            <span className="inline-flex items-center gap-1 font-display text-[10px] text-plum-500">
+              <TgGlyph className="h-3.5 w-3.5 text-brand-soft" />
+              <VkGlyph className="h-3.5 w-3.5 text-brand-soft" />
+            </span>
+          }
+        >
+          Подписи @mambatinder
+        </SectionTitle>
+        <div className="mt-4">
+          <div className="mb-1.5 flex items-baseline justify-between">
+            <label className="text-[13px] font-semibold text-paper/90">
+              Размер шрифта подписей
+            </label>
+            <span className="text-[11px] text-plum-500">серые, у змеи</span>
+          </div>
+          <Slider
+            value={p.labelSize}
+            min={10}
+            max={40}
+            onChange={p.onLabelSize}
+            format={(v) => `${v}px`}
+          />
+          <p className="mt-1.5 text-[11.5px] text-plum-500">
+            Иконка Telegram слева, VK справа. Если места у змеи мало — шрифт
+            ужмётся сам.
+          </p>
+        </div>
+      </section>
+
       {/* ---- зерно ---- */}
       <section className="anim-rise" style={{ animationDelay: "220ms" }}>
         <SectionTitle icon={<GrainIcon className="h-4 w-4" />}>Зернистость</SectionTitle>
@@ -251,6 +293,43 @@ export default function Controls(p: Props) {
           />
           <p className="mt-1.5 text-[11.5px] text-plum-500">
             Плёночный шум поверх белого фона шаблона.
+          </p>
+        </div>
+      </section>
+
+      {/* ---- итоговое разрешение ---- */}
+      <section className="anim-rise" style={{ animationDelay: "260ms" }}>
+        <SectionTitle
+          icon={<ExpandIcon className="h-4 w-4" />}
+          badge={
+            <span className="font-display text-[10px] uppercase tracking-[0.1em] text-plum-500">
+              макс. сторона
+            </span>
+          }
+        >
+          Разрешение JPG
+        </SectionTitle>
+        <div className="mt-4">
+          <Slider
+            value={p.maxRes}
+            min={720}
+            max={6000}
+            onChange={p.onMaxRes}
+            format={(v) => `${v}px`}
+          />
+          {p.exportDims && (
+            <p className="mt-2.5 flex items-center gap-2.5 rounded-lg border border-brand/25 bg-brand/10 px-3 py-2 text-[12px] font-bold text-brand-faint">
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand opacity-70" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-brand" />
+              </span>
+              Итоговое изображение: {p.exportDims.w} × {p.exportDims.h} px
+            </p>
+          )}
+          <p className="mt-1.5 text-[11.5px] leading-relaxed text-plum-500">
+            Чем длиннее текст — тем крупнее макет. Ползунок ограничивает
+            большую сторону файла, чтобы не получались полотна по 10 000 px.
+            Предпросмотр при этом всегда чёткий.
           </p>
         </div>
       </section>
@@ -282,8 +361,8 @@ export default function Controls(p: Props) {
         </button>
         <div className="mt-3 flex items-center justify-between text-[11.5px] text-plum-500">
           <span>Качество 92% · белый фон</span>
-          <span className="tabular-nums">
-            {p.dims ? `${p.dims.w} × ${p.dims.h} px` : "…"}
+          <span className="tabular-nums" title="Логический размер макета">
+            макет {p.layoutDims ? `${p.layoutDims.w} × ${p.layoutDims.h}` : "…"}
           </span>
         </div>
         <div className="mt-4 flex items-center justify-center gap-3 border-t border-plum-700 pt-4 text-[11px] font-semibold text-plum-500">

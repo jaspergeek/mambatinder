@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Controls from "./components/Controls";
 import Preview from "./components/Preview";
 import { LogoMark } from "./components/icons";
@@ -23,8 +23,9 @@ export default function App() {
   const [snake, setSnake] = useState<SnakeState | null>(null);
   const [snakePct, setSnakePct] = useState(30); // % ширины холста
   const [noise, setNoise] = useState(30); // %
-  const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
-  const [scale, setScale] = useState<number | null>(null);
+  const [labelSize, setLabelSize] = useState(25); // px — кегль подписей @mambatinder
+  const [maxRes, setMaxRes] = useState(2048); // px — ограничение большей стороны JPG
+  const [dims, setDims] = useState<{ w: number; h: number } | null>(null); // логический размер холста
   const [fontsReady, setFontsReady] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -75,36 +76,53 @@ export default function App() {
       snakeImg: snake.img,
       snakePct: snakePct / 100,
       noise: noise / 100,
+      labelSize,
       isStale: () => !live,
     }).then((res) => {
       if (!live || res.w === 0) return;
-      setDims({ w: res.w, h: res.h });
-      setScale(res.scale);
+      setDims({ w: res.logicalW, h: res.logicalH });
     });
     return () => {
       live = false;
     };
-  }, [text, snake, snakePct, noise, fontsReady]);
+  }, [text, snake, snakePct, noise, labelSize, fontsReady]);
 
-  /* сохранение в JPG */
+  /* итоговое разрешение JPG: логический холст × масштаб, ограниченный ползунком */
+  const exportInfo = useMemo(() => {
+    if (!dims) return null;
+    const maxDim = Math.max(dims.w, dims.h);
+    const s = Math.min(3, Math.max(0.2, maxRes / maxDim));
+    return { w: Math.round(dims.w * s), h: Math.round(dims.h * s), scale: s };
+  }, [dims, maxRes]);
+
+  /* сохранение в JPG — отдельный рендер в ограничение разрешения */
   const handleSave = () => {
-    const canvas = canvasRef.current;
-    if (!canvas || !dims) return;
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) return;
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `mambatinder-${dims.w}x${dims.h}.jpg`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.setTimeout(() => URL.revokeObjectURL(url), 5000);
-      },
-      "image/jpeg",
-      0.92,
-    );
+    if (!snake) return;
+    const off = document.createElement("canvas");
+    renderCard(off, {
+      text,
+      snakeImg: snake.img,
+      snakePct: snakePct / 100,
+      noise: noise / 100,
+      labelSize,
+      maxResPx: maxRes,
+    }).then((res) => {
+      off.toBlob(
+        (blob) => {
+          if (!blob) return;
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `mambatinder-${res.w}x${res.h}.jpg`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.setTimeout(() => URL.revokeObjectURL(url), 5000);
+        },
+        "image/jpeg",
+        0.92,
+      );
+    });
     setSaved(true);
     window.clearTimeout(savedTimer.current);
     savedTimer.current = window.setTimeout(() => setSaved(false), 1800);
@@ -183,7 +201,12 @@ export default function App() {
       {/* ---------- рабочая область ---------- */}
       <main className="flex min-h-0 flex-1 flex-col lg:grid lg:grid-cols-[400px_minmax(0,1fr)]">
         <div className="order-1 h-[46vh] shrink-0 lg:order-2 lg:h-auto lg:min-h-0">
-          <Preview canvasRef={canvasRef} dims={dims} scale={scale} ready={ready} />
+          <Preview
+            canvasRef={canvasRef}
+            dims={exportInfo ? { w: exportInfo.w, h: exportInfo.h } : null}
+            scale={exportInfo ? exportInfo.scale : null}
+            ready={ready}
+          />
         </div>
         <aside className="order-2 min-h-0 flex-1 border-t border-plum-700 bg-plum-900 text-paper lg:order-1 lg:border-r lg:border-t-0">
           <Controls
@@ -197,11 +220,16 @@ export default function App() {
             onSnakeDefault={handleSnakeDefault}
             snakePct={snakePct}
             onSnakePct={setSnakePct}
+            labelSize={labelSize}
+            onLabelSize={setLabelSize}
             noise={noise}
             onNoise={setNoise}
+            maxRes={maxRes}
+            onMaxRes={setMaxRes}
             onSave={handleSave}
             saved={saved}
-            dims={dims}
+            exportDims={exportInfo ? { w: exportInfo.w, h: exportInfo.h } : null}
+            layoutDims={dims}
           />
         </aside>
       </main>
