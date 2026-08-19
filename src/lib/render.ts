@@ -68,19 +68,35 @@ function getNoiseTile(): HTMLCanvasElement {
 }
 
 /* ---------- иконки подписей ---------- */
-const SEND_PATH = new Path2D("M2 21l21-9L2 3v7l15 2-15 2v7z");
+/* Официальный логотип Telegram (viewBox 240×240), серая версия */
+const TG_SHADE_LIGHT = new Path2D(
+  "M98 175c-3.888 0-3.227-1.468-4.568-5.17L82 132.207 170 80",
+);
+const TG_SHADE_MID = new Path2D(
+  "M98 175c3 0 4.325-1.372 6-3l16-15.558-19.958-12.035",
+);
+const TG_PLANE = new Path2D(
+  "m100.04 144.41 48.36 35.729c5.519 3.045 9.501 1.468 10.876-5.123l19.685-92.763c2.015-8.08-3.08-11.746-8.36-9.349l-115.59 44.571c-7.89 3.165-7.843 7.567-1.438 9.528l29.663 9.259 68.673-43.325c3.242-1.966 6.218-.91 3.776 1.258",
+);
 
 function drawTelegramIcon(ctx: CanvasRenderingContext2D, x: number, y: number, s: number) {
   ctx.save();
-  ctx.fillStyle = ICON_GRAY;
+  const g = ctx.createLinearGradient(x + s * 0.32, y, x + s * 0.68, y + s);
+  g.addColorStop(0, "#b7aebc");
+  g.addColorStop(1, "#8a8190");
+  ctx.fillStyle = g;
   ctx.beginPath();
   ctx.arc(x + s / 2, y + s / 2, s / 2, 0, Math.PI * 2);
   ctx.fill();
-  const k = (s * 0.62) / 24;
-  ctx.translate(x + s / 2 - 12.5 * k, y + s / 2 - 12 * k);
+  const k = s / 240;
+  ctx.translate(x + s / 2 - 120 * k, y + s / 2 - 120 * k);
   ctx.scale(k, k);
+  ctx.fillStyle = "#d9d3dc";
+  ctx.fill(TG_SHADE_LIGHT);
+  ctx.fillStyle = "#c2bac7";
+  ctx.fill(TG_SHADE_MID);
   ctx.fillStyle = "#ffffff";
-  ctx.fill(SEND_PATH);
+  ctx.fill(TG_PLANE);
   ctx.restore();
 }
 
